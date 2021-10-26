@@ -1,0 +1,294 @@
+---
+title: "MXN501"
+author: "Paramita Parinyanupap"
+date: "14/10/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(alr4)
+library(broom)
+df <- read_csv("insurance3r2.csv")
+dim(df)
+summary(df)
+```
+## Data Cleaning
+There is no missing value in this dataset.
+converting Data type
+- nominal: sex, region, insurance_claim
+- discrete: age and steps (set as numeric or continous in the model), children(set as ordinal)
+- continous: bmi,charges
+
+```{r}
+print("Missing value")
+colSums(is.na(df))/ length(df)
+
+# converting datatype
+df$sex <- factor(df$sex)
+df$region <- factor(df$region)
+df$smoker <- factor(df$smoker)
+df$insuranceclaim <- factor(df$insuranceclaim)
+summary(df)
+```
+
+# Exploratory plot
+
+```{r}
+library(reshape)
+df.l <- df[c("age", "bmi", "steps", "children", "charges","insuranceclaim")]
+summary(df.l)
+identical(names(df.l), df.m)
+df.m <- melt(df.l, id_vars = c("insuranceclaim"))
+summary(df.m)
+p <- ggplot(data = df.m, aes(x = variable, y = value)) +
+  geom_boxplot(aes(fill = insuranceclaim))
+p
+p+ facet_wrap(~ variable, scales = "free")
+
+```
+- age: not much difference
+- bmi: people with higher bmi will claim more
+- children: people have 0 or 1 child will claim more than people who have more children
+- steps: people will have less will claim more insurance
+- charges: higher charges claim more
+
+These numeric variables have different ranges. Charges and BMI variables have a lot of outliers according to boxplot outliers which can violate the logistic assumption. 
+```{r}
+y <- df$insuranceclaim
+# Seems like personal loans
+hist(df$age,xlab="Age")
+
+# Look at linear assumption for logistic regression
+# Age
+x <- df$age
+g <- cut(x, breaks=quantile(x,seq(0,100,10)/100))
+ym <- tapply(y, g, mean)
+xm <- tapply(x, g, mean)
+
+inter <- data.frame(xm ,ym)
+p <- ggplot(inter, aes(xm, ym)) +
+  geom_point() + geom_smooth(method = "loess")
+print(p + ggtitle("Age"))
+
+ymp <- log(ym/(1-ym))
+inter <- data.frame(xm ,ym)
+p <- ggplot(inter, aes(xm, ymp)) +
+  geom_point() + geom_smooth(method = "loess")
+print(p + ggtitle("Age"))
+
+
+# BMI
+x <- df$bmi
+g <- cut(x, breaks=quantile(x,seq(0,100,10)/100))
+ym <- tapply(y, g, mean)
+xm <- tapply(x, g, mean)
+
+inter <- data.frame(xm ,ym)
+p <- ggplot(inter, aes(xm, ym)) +
+  geom_point() + geom_smooth(method = "loess")
+print(p + ggtitle("BMI"))
+
+ymp <- log(ym/(1-ym))
+inter <- data.frame(xm ,ym)
+p <- ggplot(inter, aes(xm, ymp)) +
+  geom_point() + geom_smooth(method = "loess")
+print(p + ggtitle("BMI"))
+
+# Steps
+x <- df$steps
+g <- cut(x, breaks=quantile(x,seq(0,100,10)/100))
+ym <- tapply(y, g, mean)
+xm <- tapply(x, g, mean)
+
+inter <- data.frame(xm ,ym)
+p <- ggplot(inter, aes(xm, ym)) +
+  geom_point() + geom_smooth(method = "loess")
+print(p + ggtitle("Steps"))
+
+ymp <- log(ym/(1-ym))
+inter <- data.frame(xm ,ym)
+p <- ggplot(inter, aes(xm, ymp)) +
+  geom_point() + geom_smooth(method = "loess")
+print(p + ggtitle("Steps"))
+
+# Charge
+x <- df$charges
+g <- cut(x, breaks=quantile(x,seq(0,100,10)/100))
+ym <- tapply(y, g, mean)
+xm <- tapply(x, g, mean)
+
+inter <- data.frame(xm ,ym)
+p <- ggplot(inter, aes(xm, ym)) +
+  geom_point() + geom_smooth(method = "loess")
+print(p + ggtitle("Charges"))
+
+ymp <- log(ym/(1-ym))
+inter <- data.frame(xm ,ym)
+p <- ggplot(inter, aes(xm, ymp)) +
+  geom_point() + geom_smooth(method = "loess")
+print(p + ggtitle("Charges"))
+
+
+```
+
+```{r}
+# Tables
+print("Gender")
+q <- colSums(table(y,df$sex))
+q <- rbind(q,q)
+table(y,df$sex)/q
+
+print("Region")
+q <- colSums(table(y,df$region))
+q <- rbind(q,q)
+table(y,df$region)/q
+
+print("Smoker")
+q <- colSums(table(y,df$smoker))
+q <- rbind(q,q)
+table(y,df$smoker)/q
+
+```
+```
+
+
+```{r}
+library(broom)
+numericdata <- df %>%
+  dplyr::select_if(is.numeric) 
+predictors <- colnames(numericdata)
+probabilities <- 
+# Bind the logit and tidying the data for plot
+numericdata <- numericdata%>%
+  mutate(logit = log(probabilities/(1-probabilities))) %>%
+  gather(key = "predictors", value = "predictor.value", -logit)
+
+ggplot(numericdata, aes(logit, predictor.value))+
+  geom_point(size = 0.5, alpha = 0.5) +
+  geom_smooth(method = "loess") + 
+  theme_bw() + 
+  facet_wrap(~predictors, scales = "free_y")
+```
+age: from age 18 to around 33 probability of claim will reduce and after 33 the chance of insurance claim is higher
+bmi: higher bmi will have higher prob to claim insurance
+steps: more walk steps will have lower probability to claim insurance
+charges from 0 to 5000 will lower chance to claim and afterward claim will be higher
+
+Age and BMI shows linear relationships to logit of insurance claims. However, charges, children,and steps show an exponential pattern to logit of insurance claims. 
+
+```{r}
+# Tables
+print("Gender")
+q <- colSums(table(y,df$sex))
+q <- rbind(q,q)
+table(y,df$sex)/q
+
+print("Region")
+q <- colSums(table(y,df$region))
+q <- rbind(q,q)
+table(y,df$region)/q
+
+print("Smoker")
+q <- colSums(table(y,df$smoker))
+q <- rbind(q,q)
+table(y,df$smoker)/q
+
+```
+comment:
+y = insurance claim
+- male claim a little bit more than female
+- region 2 > region 3 > region 0 > region 1
+- smoker have high chance to make insurance claim 90.8%, non-smoker group there is equally claim between claim or not claim
+
+correlation matrix
+```{r}
+library(corrplot)
+numericdata2 <- df[c(predictors)]
+numericdata.corr <- cor(numericdata2, method = c("spearman"))
+print(numericdata.corr)
+corrplot(numericdata.corr)
+```
+There are no highly correlated problem between numerical variables, so it is not necessary to do any further steps for this one.
+
+## Data validation
+split train and test
+```{r}
+library(caret)
+intrain <- createDataPartition(y = df$insuranceclaim, p =0.7, list = FALSE)
+training <- df[intrain,]
+testing <- df[-intrain,]
+
+dim(training)
+dim(testing)
+```
+
+# Model
+```{r}
+library(MASS)
+fit <- glm(insuranceclaim ~., data=training, family = "binomial")
+summary(fit)
+
+# odd-ratios only
+exp(coef(fit))
+
+# odds ratios and 95% CI
+exp(cbind(OR = coef(fit), confint(fit)))
+```
+#### Not significant: 
+There are some not significant variables in the model, including: 
+
+#### Significant variables
+age, bmi, children, smoker significantly affected insurance claims.
+- when policy holder's age increased by 1, they are more likely to claim insurance 1.02 times (95% CI: 1.01, 1.05) than previous age.
+- when bmi is increased by 1, policy holder will claim insurance 1.33 times (95% CI: 1.26, 1.42) more
+- when policy holder have more children, they likely to claim insurance less 0.2419 times (95% CI: 0.193, 0.2983)
+- if policy holder is smoker, it is more likely to claim insurance 73.4 times (95% CI: 27.2, 209.7) more than non-smoker
+
+
+```{r}
+qchisq(0.95, df= length(y) - 6)
+```
+
+```{r}
+anova(fit, test = "Chisq")
+```
+
+
+```{r}
+# predict probability of insurance claim
+probabilities <- predict(fit, type = "response")
+predicted.classes <- ifelse(probabilities > 0.5, 1, 0)
+head(predicted.classes)
+```
+
+
+```{r}
+library(DHARMa)
+res=simulateResiduals(fit)
+plot(res)
+```
+QQPlot shows that errors of this model is normality distributed because the line is perfectly fit with the theorical one. However, there are some patterns show in residual and predicted in model predictions which is viololated model assumption on homogeneity of error.
+
+## Model Performance
+```{r}
+library(pROC)
+train_predict <- predict(fit, training, type = "response")
+g1_train <- roc(training$insuranceclaim ~ train_predict)
+plot(g1_train)
+g1_train$auc
+
+test_predict <- predict(fit, testing, type = "response") 
+g1_test <- roc(testing$insuranceclaim ~ test_predict)
+plot(g1_test)
+g1_test$auc
+
+```
+
