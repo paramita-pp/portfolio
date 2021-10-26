@@ -12,7 +12,7 @@ I want to use the dataset to find the characteristics that effect insurance clai
 
 ## Simple Linear Regression
 ### Insurance Charges
-[Data Soruce](https://www.kaggle.com/mirichoi0218/insurance): Insurance Dataset from Kaggle
+[Data Soruce](https://www.kaggle.com/mirichoi0218/insurance): Insurance Dataset from Kaggle<br>
 [Insurance Charges analysis](https://github.com/paramita-pp/portfolio/blob/main/insurance.ipynb)
 **Project Detail**
 I found that smoker have high impact.
