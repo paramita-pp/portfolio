@@ -1,0 +1,257 @@
+---
+title: "IFN704"
+author: "Paramita Parinyanupap"
+date: "29/08/2021"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Data
+Load necessary Library and read the data in
+```{r}
+library(haven)
+library(dplyr)
+library(ggplot2)
+library(foreign)
+library(nnet)
+library(reshape2)
+library(Hmisc)
+library(MASS)
+library(stringr)
+library(rcompanion)
+
+data17 <- read_spss("spss1/Combined q170c.sav")
+data17 <- data17 %>% rename_all(~stringr::str_replace(., "q", ""))
+data17a <- data17[c("gh9h", "wsce", "bncall", "jbhruc", "hgage1", "edhigh1", "hgsex1", "gh1", "mrcurr")]
+
+colnames(data17a)
+df2 <- rename(data17a, c(
+    "happiness" = "gh9h",
+    "wage" = "wsce",
+    "government_allowances" = "bncall",
+    "hour" ="jbhruc",
+    "age" = "hgage1",
+    "education" ="edhigh1",
+    "gender" ="hgsex1",
+    "health" ="gh1",
+    "marital_status" ="mrcurr")
+)
+
+colnames(df2)
+dim(df2) 
+# check percentage of missing value
+colMeans(is.na(df2))
+
+
+# convert data type
+library(rccdates)
+df2 <- within(df2, {
+  gender <- factor(gender, levels = 1:2, labels = c("male", "female"))
+  education <- factor(education, levels = c(9, 8, 5, 4, 3, 2, 1), labels = c("Year 11 or below", "Year 12", "Cert III or IV", "Adv Diploma, diploma", "Bachelor or honours","Grad diploma, grad certificate", "Postgrad - masters or doctorate"))
+  happiness <- factor(happiness, levels = 6:1, labels = c("None of the time", "A little of the time", "Some of the time", "A good bit of the time", "Most of the time", "All of the time"))
+  health <- factor(health, level = 5:1, labels = c("Poor", "Fair", "Good", "Very good", "Excellent"))
+})
+
+
+df2$marital_status <- factor(df2$marital_status, levels = c(1,2,3,4,5,6), labels = c("Married", "Defacto", "Seperated", "Divorced", "Widowed", "Single"))
+
+df2 <- na.omit(df2)
+
+# filter age within 18 and 65 -> labour force
+df2 <-df2 %>%
+  filter(age > 18 & age < 65)
+
+
+dim(df2)
+summary(df2)
+```
+
+
+## Data Description
+```{r}
+summary(df2$education)
+```
+
+I choose the variables from HILDA dataset, which includes wage, government allowances (bncall), weekly work hour, age, education (edhigh1), and happiness.
+The detail of variable
+- wage(wsce) is currently weekly gross wages and salary, all jobs, includes estimated from net($) [weighted topcode]
+- government_allowances (bncall) is the current weekly Australian Government Allowances ($)
+- hour: Hours per week usually worked in all jobs
+- age
+- gender
+    [1] Male
+    [2] Female
+- education (qedhigh1) is history of highest education level achieved
+    [10] undetermined
+    [1] Postgrad - masters or doctorate
+    [2] Grad diploma, grad certificate
+    [3] Bachelor or honours
+    [4] Adv diploma, diploma
+    [5] Cert III or IV
+    [8] Year 12
+    [9] Year 11 or below
+
+- health (gh1) is self-assessed health
+    [-4] refused/ not stated
+    [-5] multiple response SCQ
+    [-8] No SCQ
+    [1] Excellent
+    [2] Very good
+    [3] Good
+    [4] Fair
+    [5] Poor
+
+- happiness (gh9h) is A9h Mental Health: Been a happy person
+  Answering in scale "Have you been a happy person?"
+    [-4] refused/ not states
+    [-5] multiple response SCQ
+    [-8] no SCQ
+    [1] All of the time
+    [2] Most of the time
+    [3] A good bit of the time
+    [4] Some of the time
+    [5] A little of the time
+    [6] None of the time
+
+- country of birth (ancob) in which country were you born?
+    change the value of interest to Australian = 1 and the rest = 0
+    the same value for all waves but indifferent variable for wave 1 aancob, wave 2 bancob
+
+- employment contract - current job (jbmcnt)
+    [-1] Not asked
+    [-4] refused/not stated
+    [1] Employed on a fixed-term contract
+    [2] Employed on a casual basis
+    [3] Employed on a permanent or ongoing basis
+    [8] Other
+
+- E36a total pay satisfaction (jbmssec)
+- job security satisfaction (jbmssec)
+- work satisfaction (jbmswrk)
+- the hour of work satisfaction (jbmshrs)
+
+- year of survey display in wave
+- xwaveid = id for cross
+
+marital status
+  1	Legally married
+  2	De facto
+  3	Separated
+  4	Divorced
+  5	Widowed
+  6 Never married and not de facto
+
+## 1. Data Exploration
+Continuous variable
+hour, wage, government_allowances, age
+
+Checking normal distribution
+- normal
+- wage is right skews
+
+Categorical variable
+- Ordinal: education, happiness
+- Nominal: sex, marital status
+As the hour increased, the average of people will be less happy.
+As the wage increased, people tend be less happy. The reason can be the people who gain high wage work in the high stress position.
+For government allowances, there is no difference between each level of happiness.
+
+
+```{r}
+# Boxplot
+colnames(df2)
+df.l <- df2[c("hour", "wage", "age", "government_allowances","happiness")]
+df.m <- melt(df.l, id.var = "happiness")
+
+p <- ggplot(data = df.m, aes(x = variable, y = value)) + geom_boxplot(aes(fill = happiness))
+p + facet_wrap(~ variable, scales = "free")
+
+```
+
+```{r}
+par(mfrow=c(2,2))
+ggplot(df2, aes(x = gender, fill = happiness)) + geom_bar(position = "stack")
+ggplot(df2, aes(x = education, fill = happiness)) + geom_bar(position = "stack")
+ggplot(df2, aes(x = health, fill = happiness)) + geom_bar(position = "stack")
+ggplot(df2, aes(x = marital_status, fill = happiness)) + geom_bar(position = "stack")
+```
+
+
+```{r}
+library(corrplot)
+library(Hmisc)
+df3 <- df2[c("hour", "wage", "government_allowances")]
+df3.cor <- cor(df3, method = c("spearman"))
+df3.cor
+corrplot(df3.cor)
+```
+Correlation matrix shows that there is no multicollinearity problem. However, hour and wage are almost highly correlated.
+
+
+## 2. Data Partition
+```{r}
+ind <-sample(2, nrow(df2), replace = TRUE, prob = c(0.7, 0.3))
+train <- df2[ind == 1,]
+test <- df2[ind == 2,]
+```
+
+
+# Model
+
+```{r}
+library(MASS)
+library(Hmisc)
+orderlog <- polr(happiness ~ wage + government_allowances + hour + age + education + gender + health + marital_status, data = train, Hess = TRUE)
+summary(orderlog)
+logLik(orderlog)
+```
+
+
+```{r}
+# p-Value Calculation
+m1.coef <- data.frame(coef(summary(orderlog)))
+m1.coef$pval = round((pnorm(abs(m1.coef$t.value), lower.tail = FALSE) * 2), 2)
+m1.coef
+```
+```{r}
+# export the model p-value data
+library(stargazer)
+stargazer(orderlog, type = "text", out = "orderlog.txt")
+```
+
+```{r}
+# odd ratio
+ci <- confint.default(orderlog)
+exp(cbind(OR = coef(orderlog), ci))
+```
+
+
+# Model Performance
+```{r}
+# predict train
+train_pred <- predict(orderlog, train)
+
+# predict test
+test_pred <- predict(orderlog, test)
+```
+
+
+```{r}
+library(caret)
+confusionMatrix(train_pred, train$happiness, positive = "pos")
+```
+```{r}
+confusionMatrix(test_pred, test$happiness, positive = "pos")
+```
+
+
+
+Source:
+https://stats.idre.ucla.edu/r/dae/ordinal-logistic-regression/
+
