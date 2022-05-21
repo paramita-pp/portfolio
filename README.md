@@ -7,7 +7,7 @@ Code collection for the simple project for my portfolio
 [Data Source](https://www.kaggle.com/easonlai/sample-insurance-claim-prediction-dataset)<br>
 [Insurance Dataset R Markdown](https://github.com/paramita-pp/portfolio/blob/d8c447d2d6cd3220a352432734f776223f2f2658/MXN501.Rmd): My R markdown analysis<br>
 **Project Description**<br>
-I want to use the dataset to find the characteristics that effect insurance claim of this dataset. I found that smoker have strong impact to claim insurance. There is no missing value to deal in this file. In R Markdown, I develop this for my group project which I am responsible for coding and my groupmate is responsible for report.
+I want to use the dataset to find the characteristics that effect insurance claim of this dataset. I found that smoker have strong impact to claim insurance. There is no missing value to deal in this file. In R Markdown, I develop this for my group project which I am responsible for coding and my groupmate, [Trung](https://github.com/Trung-Nguyen21), is responsible for report. 
 
 
 ## Simple Linear Regression
